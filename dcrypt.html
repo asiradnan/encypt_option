@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YubiKey Data Decryption</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            min-height: 200px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #f5576c;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .decrypt-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .decrypt-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.3);
+        }
+
+        .clear-btn {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .clear-btn:hover {
+            background: #e0e0e0;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #f5576c;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .decrypted-data {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            word-break: break-all;
+        }
+
+        .data-row {
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .data-value {
+            color: #333;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .yubikey-icon {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 48px;
+        }
+
+        .helper-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="yubikey-icon">🔓</div>
+        <h1>YubiKey Decryption</h1>
+        <p class="subtitle">Decrypt your data securely with your YubiKey</p>
+
+        <form id="decryptForm">
+            <div class="form-group">
+                <label for="encryptedInput">Encrypted Data (JSON)</label>
+                <textarea 
+                    id="encryptedInput" 
+                    placeholder='Paste the encrypted JSON data here, e.g.:
+{
+  "credentialId": "...",
+  "iv": "...",
+  "encryptedData": "...",
+  "key": "...",
+  "timestamp": "..."
+}'
+                    required
+                ></textarea>
+                <p class="helper-text">Paste the entire JSON output from the encryption process</p>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="decrypt-btn" id="decryptBtn">
+                    🔓 Decrypt with YubiKey
+                </button>
+                <button type="button" class="clear-btn" id="clearBtn">
+                    Clear
+                </button>
+            </div>
+        </form>
+
+        <div id="result" class="result">
+            <h3>Decrypted Data</h3>
+            <div class="decrypted-data" id="decryptedData"></div>
+            <div class="status" id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('decryptForm');
+        const decryptBtn = document.getElementById('decryptBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultDiv = document.getElementById('result');
+        const decryptedDataDiv = document.getElementById('decryptedData');
+        const statusDiv = document.getElementById('status');
+
+        async function decryptData(encryptedObj) {
+            try {
+                // Check if WebAuthn is supported
+                if (!window.PublicKeyCredential) {
+                    throw new Error('WebAuthn is not supported in this browser');
+                }
+
+                showStatus('Please insert and touch your YubiKey to verify...', 'info');
+
+                // Convert base64 strings back to ArrayBuffers
+                const iv = base64ToArrayBuffer(encryptedObj.iv);
+                const encryptedData = base64ToArrayBuffer(encryptedObj.encryptedData);
+                const keyData = base64ToArrayBuffer(encryptedObj.key);
+
+                // Generate a challenge for authentication
+                const challenge = new Uint8Array(32);
+                crypto.getRandomValues(challenge);
+
+                // Note: For WebAuthn to work, you need a valid domain or localhost
+                const rpId = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1' ? 
+                            'localhost' : window.location.hostname;
+
+                // Get credential for verification
+                const publicKeyOptions = {
+                    challenge: challenge,
+                    rpId: rpId,
+                    allowCredentials: [{
+                        id: base64ToArrayBuffer(encryptedObj.credentialId),
+                        type: 'public-key',
+                        transports: ['usb', 'nfc']
+                    }],
+                    userVerification: 'discouraged',
+                    timeout: 60000
+                };
+
+                // Authenticate with YubiKey
+                const assertion = await navigator.credentials.get({
+                    publicKey: publicKeyOptions
+                });
+
+                if (!assertion) {
+                    throw new Error('Failed to authenticate with YubiKey');
+                }
+
+                // Import the encryption key
+                const decryptionKey = await crypto.subtle.importKey(
+                    "raw",
+                    keyData,
+                    { name: "AES-GCM" },
+                    false,
+                    ["decrypt"]
+                );
+
+                // Decrypt the data
+                const decryptedBuffer = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    decryptionKey,
+                    encryptedData
+                );
+
+                // Convert decrypted data back to string
+                const decoder = new TextDecoder();
+                const decryptedString = decoder.decode(decryptedBuffer);
+                const decryptedObj = JSON.parse(decryptedString);
+
+                return decryptedObj;
+
+            } catch (error) {
+                console.error('Decryption error:', error);
+                throw error;
+            }
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function displayDecryptedData(data) {
+            decryptedDataDiv.innerHTML = '';
+            
+            for (const [key, value] of Object.entries(data)) {
+                const row = document.createElement('div');
+                row.className = 'data-row';
+                
+                const label = document.createElement('span');
+                label.className = 'data-label';
+                label.textContent = key.charAt(0).toUpperCase() + key.slice(1) + ':';
+                
+                const valueSpan = document.createElement('span');
+                valueSpan.className = 'data-value';
+                valueSpan.textContent = value;
+                
+                row.appendChild(label);
+                row.appendChild(valueSpan);
+                decryptedDataDiv.appendChild(row);
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const encryptedInput = document.getElementById('encryptedInput').value;
+
+            decryptBtn.disabled = true;
+            decryptBtn.textContent = '🔄 Decrypting...';
+
+            try {
+                // Parse the JSON input
+                const encryptedObj = JSON.parse(encryptedInput);
+                
+                // Validate required fields
+                if (!encryptedObj.credentialId || !encryptedObj.iv || 
+                    !encryptedObj.encryptedData || !encryptedObj.key) {
+                    throw new Error('Invalid encrypted data format. Missing required fields.');
+                }
+
+                const decrypted = await decryptData(encryptedObj);
+                
+                displayDecryptedData(decrypted);
+                resultDiv.classList.add('show');
+                showStatus('✅ Data decrypted successfully with YubiKey!', 'success');
+                
+            } catch (error) {
+                resultDiv.classList.add('show');
+                decryptedDataDiv.innerHTML = '';
+                
+                let errorMessage = error.message;
+                if (error instanceof SyntaxError) {
+                    errorMessage = 'Invalid JSON format. Please check your input.';
+                }
+                
+                showStatus(`❌ Error: ${errorMessage}`, 'error');
+            } finally {
+                decryptBtn.disabled = false;
+                decryptBtn.textContent = '🔓 Decrypt with YubiKey';
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            form.reset();
+            resultDiv.classList.remove('show');
+            decryptedDataDiv.innerHTML = '';
+            statusDiv.textContent = '';
+        });
+    </script>
+</body>
+</html>
