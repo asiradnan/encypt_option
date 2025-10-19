@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YubiKey Data Decryption</title>
+    <title>YubiKey Data Encryption</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -26,7 +26,7 @@
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
+            max-width: 500px;
             width: 100%;
         }
 
@@ -54,21 +54,18 @@
             font-size: 14px;
         }
 
-        textarea {
+        input {
             width: 100%;
-            padding: 15px;
+            padding: 12px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
-            font-size: 14px;
-            font-family: 'Courier New', monospace;
-            resize: vertical;
-            min-height: 200px;
+            font-size: 16px;
             transition: border-color 0.3s;
         }
 
-        textarea:focus {
+        input:focus {
             outline: none;
-            border-color: #f5576c;
+            border-color: #667eea;
         }
 
         .button-group {
@@ -88,14 +85,14 @@
             transition: all 0.3s;
         }
 
-        .decrypt-btn {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        .encrypt-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
 
-        .decrypt-btn:hover:not(:disabled) {
+        .encrypt-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.3);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
 
         .clear-btn {
@@ -117,7 +114,7 @@
             padding: 20px;
             background: #f8f9fa;
             border-radius: 10px;
-            border-left: 4px solid #f5576c;
+            border-left: 4px solid #667eea;
             display: none;
         }
 
@@ -131,31 +128,16 @@
             font-size: 18px;
         }
 
-        .decrypted-data {
+        .encrypted-data {
             background: white;
             padding: 15px;
             border-radius: 8px;
             word-break: break-all;
-        }
-
-        .data-row {
-            padding: 10px 0;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .data-row:last-child {
-            border-bottom: none;
-        }
-
-        .data-label {
-            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
             color: #555;
-        }
-
-        .data-value {
-            color: #333;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
         .status {
@@ -186,41 +168,33 @@
             margin-bottom: 20px;
             font-size: 48px;
         }
-
-        .helper-text {
-            font-size: 12px;
-            color: #999;
-            margin-top: 5px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="yubikey-icon">🔓</div>
-        <h1>YubiKey Decryption</h1>
-        <p class="subtitle">Decrypt your data securely with your YubiKey</p>
+        <div class="yubikey-icon">🔐</div>
+        <h1>YubiKey Encryption</h1>
+        <p class="subtitle">Encrypt your data securely with your YubiKey</p>
 
-        <form id="decryptForm">
+        <form id="encryptForm">
             <div class="form-group">
-                <label for="encryptedInput">Encrypted Data (JSON)</label>
-                <textarea 
-                    id="encryptedInput" 
-                    placeholder='Paste the encrypted JSON data here, e.g.:
-{
-  "credentialId": "...",
-  "iv": "...",
-  "encryptedData": "...",
-  "key": "...",
-  "timestamp": "..."
-}'
-                    required
-                ></textarea>
-                <p class="helper-text">Paste the entire JSON output from the encryption process</p>
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Enter username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="Enter email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="tel" id="phone" placeholder="Enter phone number" required>
             </div>
 
             <div class="button-group">
-                <button type="submit" class="decrypt-btn" id="decryptBtn">
-                    🔓 Decrypt with YubiKey
+                <button type="submit" class="encrypt-btn" id="encryptBtn">
+                    🔒 Encrypt with YubiKey
                 </button>
                 <button type="button" class="clear-btn" id="clearBtn">
                     Clear
@@ -229,101 +203,123 @@
         </form>
 
         <div id="result" class="result">
-            <h3>Decrypted Data</h3>
-            <div class="decrypted-data" id="decryptedData"></div>
+            <h3>Encrypted Data</h3>
+            <div class="encrypted-data" id="encryptedData"></div>
             <div class="status" id="status"></div>
         </div>
     </div>
 
     <script>
-        const form = document.getElementById('decryptForm');
-        const decryptBtn = document.getElementById('decryptBtn');
+        const form = document.getElementById('encryptForm');
+        const encryptBtn = document.getElementById('encryptBtn');
         const clearBtn = document.getElementById('clearBtn');
         const resultDiv = document.getElementById('result');
-        const decryptedDataDiv = document.getElementById('decryptedData');
+        const encryptedDataDiv = document.getElementById('encryptedData');
         const statusDiv = document.getElementById('status');
 
-        async function decryptData(encryptedObj) {
+        // Store credential for reuse
+        let storedCredential = null;
+
+        async function encryptData(data) {
             try {
                 // Check if WebAuthn is supported
                 if (!window.PublicKeyCredential) {
                     throw new Error('WebAuthn is not supported in this browser');
                 }
 
-                showStatus('Please insert and touch your YubiKey to verify...', 'info');
+                showStatus('Please insert and touch your YubiKey...', 'info');
 
-                // Convert base64 strings back to ArrayBuffers
-                const iv = base64ToArrayBuffer(encryptedObj.iv);
-                const encryptedData = base64ToArrayBuffer(encryptedObj.encryptedData);
-                const keyData = base64ToArrayBuffer(encryptedObj.key);
-
-                // Generate a challenge for authentication
+                // Generate a challenge
                 const challenge = new Uint8Array(32);
                 crypto.getRandomValues(challenge);
 
+                // Create credential options
                 // Note: For WebAuthn to work, you need a valid domain or localhost
                 const rpId = window.location.hostname === 'localhost' || 
                             window.location.hostname === '127.0.0.1' ? 
                             'localhost' : window.location.hostname;
-
-                // Get credential for verification
+                
                 const publicKeyOptions = {
                     challenge: challenge,
-                    rpId: rpId,
-                    allowCredentials: [{
-                        id: base64ToArrayBuffer(encryptedObj.credentialId),
-                        type: 'public-key',
-                        transports: ['usb', 'nfc']
-                    }],
-                    userVerification: 'discouraged',
-                    timeout: 60000
+                    rp: {
+                        name: "YubiKey Encryption Demo",
+                        id: rpId
+                    },
+                    user: {
+                        id: new Uint8Array(16),
+                        name: "user@example.com",
+                        displayName: "Demo User"
+                    },
+                    pubKeyCredParams: [
+                        { alg: -7, type: "public-key" },  // ES256
+                        { alg: -257, type: "public-key" } // RS256
+                    ],
+                    authenticatorSelection: {
+                        authenticatorAttachment: "cross-platform",
+                        userVerification: "discouraged"
+                    },
+                    timeout: 60000,
+                    attestation: "none"
                 };
 
-                // Authenticate with YubiKey
-                const assertion = await navigator.credentials.get({
+                // Create credential
+                const credential = await navigator.credentials.create({
                     publicKey: publicKeyOptions
                 });
 
-                if (!assertion) {
-                    throw new Error('Failed to authenticate with YubiKey');
+                if (!credential) {
+                    throw new Error('Failed to create credential');
                 }
 
-                // Import the encryption key
-                const decryptionKey = await crypto.subtle.importKey(
-                    "raw",
-                    keyData,
-                    { name: "AES-GCM" },
-                    false,
-                    ["decrypt"]
+                // Convert data to JSON string
+                const dataString = JSON.stringify(data);
+                const encoder = new TextEncoder();
+                const dataBuffer = encoder.encode(dataString);
+
+                // Generate a symmetric key for encryption
+                const encryptionKey = await crypto.subtle.generateKey(
+                    { name: "AES-GCM", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
                 );
 
-                // Decrypt the data
-                const decryptedBuffer = await crypto.subtle.decrypt(
+                // Generate IV
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+
+                // Encrypt the data
+                const encryptedBuffer = await crypto.subtle.encrypt(
                     { name: "AES-GCM", iv: iv },
-                    decryptionKey,
-                    encryptedData
+                    encryptionKey,
+                    dataBuffer
                 );
 
-                // Convert decrypted data back to string
-                const decoder = new TextDecoder();
-                const decryptedString = decoder.decode(decryptedBuffer);
-                const decryptedObj = JSON.parse(decryptedString);
+                // Export the encryption key
+                const exportedKey = await crypto.subtle.exportKey("raw", encryptionKey);
 
-                return decryptedObj;
+                // Combine credential ID, IV, encrypted data, and key
+                const result = {
+                    credentialId: arrayBufferToBase64(credential.rawId),
+                    iv: arrayBufferToBase64(iv),
+                    encryptedData: arrayBufferToBase64(encryptedBuffer),
+                    key: arrayBufferToBase64(exportedKey),
+                    timestamp: new Date().toISOString()
+                };
+
+                return result;
 
             } catch (error) {
-                console.error('Decryption error:', error);
+                console.error('Encryption error:', error);
                 throw error;
             }
         }
 
-        function base64ToArrayBuffer(base64) {
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
             }
-            return bytes.buffer;
+            return btoa(binary);
         }
 
         function showStatus(message, type) {
@@ -331,71 +327,39 @@
             statusDiv.className = `status ${type}`;
         }
 
-        function displayDecryptedData(data) {
-            decryptedDataDiv.innerHTML = '';
-            
-            for (const [key, value] of Object.entries(data)) {
-                const row = document.createElement('div');
-                row.className = 'data-row';
-                
-                const label = document.createElement('span');
-                label.className = 'data-label';
-                label.textContent = key.charAt(0).toUpperCase() + key.slice(1) + ':';
-                
-                const valueSpan = document.createElement('span');
-                valueSpan.className = 'data-value';
-                valueSpan.textContent = value;
-                
-                row.appendChild(label);
-                row.appendChild(valueSpan);
-                decryptedDataDiv.appendChild(row);
-            }
-        }
-
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const encryptedInput = document.getElementById('encryptedInput').value;
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
 
-            decryptBtn.disabled = true;
-            decryptBtn.textContent = '🔄 Decrypting...';
+            const userData = { username, email, phone };
+
+            encryptBtn.disabled = true;
+            encryptBtn.textContent = '🔄 Encrypting...';
 
             try {
-                // Parse the JSON input
-                const encryptedObj = JSON.parse(encryptedInput);
+                const encrypted = await encryptData(userData);
                 
-                // Validate required fields
-                if (!encryptedObj.credentialId || !encryptedObj.iv || 
-                    !encryptedObj.encryptedData || !encryptedObj.key) {
-                    throw new Error('Invalid encrypted data format. Missing required fields.');
-                }
-
-                const decrypted = await decryptData(encryptedObj);
-                
-                displayDecryptedData(decrypted);
+                encryptedDataDiv.textContent = JSON.stringify(encrypted, null, 2);
                 resultDiv.classList.add('show');
-                showStatus('✅ Data decrypted successfully with YubiKey!', 'success');
+                showStatus('✅ Data encrypted successfully with YubiKey!', 'success');
                 
             } catch (error) {
                 resultDiv.classList.add('show');
-                decryptedDataDiv.innerHTML = '';
-                
-                let errorMessage = error.message;
-                if (error instanceof SyntaxError) {
-                    errorMessage = 'Invalid JSON format. Please check your input.';
-                }
-                
-                showStatus(`❌ Error: ${errorMessage}`, 'error');
+                encryptedDataDiv.textContent = '';
+                showStatus(`❌ Error: ${error.message}`, 'error');
             } finally {
-                decryptBtn.disabled = false;
-                decryptBtn.textContent = '🔓 Decrypt with YubiKey';
+                encryptBtn.disabled = false;
+                encryptBtn.textContent = '🔒 Encrypt with YubiKey';
             }
         });
 
         clearBtn.addEventListener('click', () => {
             form.reset();
             resultDiv.classList.remove('show');
-            decryptedDataDiv.innerHTML = '';
+            encryptedDataDiv.textContent = '';
             statusDiv.textContent = '';
         });
     </script>
